@@ -5,6 +5,7 @@ package medium
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,10 +22,10 @@ import (
 
 // Available scope options when requesting access to a user's Medium account.
 const (
-	ScopeBasicProfile Scope = "basicProfile"
-	ScopePublishPost        = "publishPost"
-	ScopeUploadImage        = "uploadImage"
-	ScopeListPublications   = "listPublications"
+	ScopeBasicProfile     Scope = "basicProfile"
+	ScopePublishPost            = "publishPost"
+	ScopeUploadImage            = "uploadImage"
+	ScopeListPublications       = "listPublications"
 )
 
 // Content formats that are available when creating a post on Medium.
@@ -217,7 +218,7 @@ func (m *Medium) GetAuthorizationURL(state, redirectURL string, scopes ...Scope)
 }
 
 // ExchangeAuthorizationCode exchanges the supplied code for a long-lived access token.
-func (m *Medium) ExchangeAuthorizationCode(code, redirectURL string) (AccessToken, error) {
+func (m *Medium) ExchangeAuthorizationCode(ctx context.Context, code, redirectURL string) (AccessToken, error) {
 	v := url.Values{
 		"code":          {code},
 		"client_id":     {m.ApplicationID},
@@ -225,24 +226,24 @@ func (m *Medium) ExchangeAuthorizationCode(code, redirectURL string) (AccessToke
 		"grant_type":    {"authorization_code"},
 		"redirect_uri":  {redirectURL},
 	}
-	return m.acquireAccessToken(v)
+	return m.acquireAccessToken(ctx, v)
 }
 
 // ExchangeRefreshToken exchanges the supplied refresh token for a new access token.
-func (m *Medium) ExchangeRefreshToken(rt string) (AccessToken, error) {
+func (m *Medium) ExchangeRefreshToken(ctx context.Context, rt string) (AccessToken, error) {
 	v := url.Values{
 		"refresh_token": {rt},
 		"client_id":     {m.ApplicationID},
 		"client_secret": {m.ApplicationSecret},
 		"grant_type":    {"refresh_token"},
 	}
-	return m.acquireAccessToken(v)
+	return m.acquireAccessToken(ctx, v)
 }
 
 // GetUser gets the profile identified by the current AccessToken.
 // It will get the specified user or the current user if userID is empty.
 // This requires m.AccessToken to have the BasicProfile scope.
-func (m *Medium) GetUser(userID string) (*User, error) {
+func (m *Medium) GetUser(ctx context.Context, userID string) (*User, error) {
 	var r clientRequest
 	if userID == "" {
 		r = clientRequest{
@@ -256,51 +257,51 @@ func (m *Medium) GetUser(userID string) (*User, error) {
 		}
 	}
 	u := &User{}
-	err := m.request(r, u)
+	err := m.request(ctx, r, u)
 	return u, err
 }
 
 // GetUserPublications gets user publications by the current AccessToken.
 // This requires m.AccessToken to have the BasicPublications scope.
-func (m *Medium) GetUserPublications(userID string) (*Publications, error) {
+func (m *Medium) GetUserPublications(ctx context.Context, userID string) (*Publications, error) {
 	r := clientRequest{
 		method: "GET",
 		path:   fmt.Sprintf("/v1/users/%s/publications", userID),
 	}
 	p := &Publications{}
-	err := m.request(r, p)
+	err := m.request(ctx, r, p)
 	return p, err
 }
 
 // GetPublicationContributors gets contributors for givaen a publication
 // by the current AccessToken.
 // This requires m.AccessToken to have the BasicPublications scope.
-func (m *Medium) GetPublicationContributors(publicationID string) (*Contributors, error) {
+func (m *Medium) GetPublicationContributors(ctx context.Context, publicationID string) (*Contributors, error) {
 	r := clientRequest{
 		method: "GET",
 		path:   fmt.Sprintf("/v1/publications/%s/contributors", publicationID),
 	}
 	p := &Contributors{}
-	err := m.request(r, p)
+	err := m.request(ctx, r, p)
 	return p, err
 }
 
 // CreatePost creates a post on the profile identified by the current AccessToken.
 // This requires m.AccessToken to have the PublishPost scope.
-func (m *Medium) CreatePost(o CreatePostOptions) (*Post, error) {
+func (m *Medium) CreatePost(ctx context.Context, o CreatePostOptions) (*Post, error) {
 	r := clientRequest{
 		method: "POST",
 		path:   fmt.Sprintf("/v1/users/%s/posts", o.UserID),
 		data:   o,
 	}
 	p := &Post{}
-	err := m.request(r, p)
+	err := m.request(ctx, r, p)
 	return p, err
 }
 
 // UploadImage uploads an image to Medium.
 // This requires m.AccessToken to have the UploadImage scope.
-func (m *Medium) UploadImage(o UploadOptions) (*Image, error) {
+func (m *Medium) UploadImage(ctx context.Context, o UploadOptions) (*Image, error) {
 	o.fieldName = "image"
 	r := clientRequest{
 		method: "POST",
@@ -309,7 +310,7 @@ func (m *Medium) UploadImage(o UploadOptions) (*Image, error) {
 		data:   o,
 	}
 	i := &Image{}
-	err := m.request(r, i)
+	err := m.request(ctx, r, i)
 	return i, err
 }
 
@@ -369,7 +370,7 @@ func (m *Medium) generateFileRequestData(cr clientRequest) ([]byte, string, erro
 }
 
 // request makes a request to Medium's API
-func (m *Medium) request(cr clientRequest, result interface{}) error {
+func (m *Medium) request(ctx context.Context, cr clientRequest, result interface{}) error {
 	f := cr.format
 	if f == "" {
 		f = formatJSON
@@ -397,6 +398,8 @@ func (m *Medium) request(cr clientRequest, result interface{}) error {
 	if err != nil {
 		return Error{fmt.Sprintf("Could not create request: %s", err), defaultCode}
 	}
+
+	req = req.WithContext(ctx)
 
 	req.Header.Add("Content-Type", ct)
 	req.Header.Add("Accept", "application/json")
@@ -438,7 +441,7 @@ func (m *Medium) request(cr clientRequest, result interface{}) error {
 }
 
 // acquireAccessToken makes a request to Medium for an access token.
-func (m *Medium) acquireAccessToken(v url.Values) (AccessToken, error) {
+func (m *Medium) acquireAccessToken(ctx context.Context, v url.Values) (AccessToken, error) {
 	cr := clientRequest{
 		method: "POST",
 		path:   "/v1/tokens",
@@ -446,7 +449,7 @@ func (m *Medium) acquireAccessToken(v url.Values) (AccessToken, error) {
 		data:   v.Encode(),
 	}
 	at := AccessToken{}
-	err := m.request(cr, &at)
+	err := m.request(ctx, cr, &at)
 
 	// Set the access token on the service.
 	if err == nil {

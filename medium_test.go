@@ -4,6 +4,7 @@ package medium
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,7 +27,7 @@ func (fakeFS) Open(name string) (io.ReadCloser, error) {
 type apiTest struct {
 	token       string
 	fn          interface{}
-	payload     interface{}
+	payload     []interface{}
 	method      string
 	path        string
 	contentType string
@@ -36,22 +37,22 @@ type apiTest struct {
 var m = NewClient("clientId", "clientSecret")
 
 var apiTests = []apiTest{
-	{"token", m.GetUser, "",
+	{"token", m.GetUser, []interface{}{context.TODO(), ""},
 		"GET", "/v1/me", "application/json",
 		"null"},
-	{"token", m.GetUser, "@dummyUser",
+	{"token", m.GetUser, []interface{}{context.TODO(), "@dummyUser"},
 		"GET", "/v1/@dummyUser", "application/json",
 		"null"},
-	{"token", m.GetUserPublications, "@dummyUser",
+	{"token", m.GetUserPublications, []interface{}{context.TODO(), "@dummyUser"},
 		"GET", "/v1/users/@dummyUser/publications", "application/json",
 		"null"},
-	{"token", m.GetPublicationContributors, "b45573563f5a",
+	{"token", m.GetPublicationContributors, []interface{}{context.TODO(), "b45573563f5a"},
 		"GET", "/v1/publications/b45573563f5a/contributors", "application/json",
 		"null"},
-	{"token", m.CreatePost, CreatePostOptions{UserID: "42", Title: "Title", Content: "Yo", ContentFormat: "html"},
+	{"token", m.CreatePost, []interface{}{context.TODO(), CreatePostOptions{UserID: "42", Title: "Title", Content: "Yo", ContentFormat: "html"}},
 		"POST", "/v1/users/42/posts", "application/json",
 		`{"title":"Title","content":"Yo","contentFormat":"html"}`},
-	{"token", m.UploadImage, UploadOptions{FilePath: "/fake/file.png", ContentType: "image/png"},
+	{"token", m.UploadImage, []interface{}{context.TODO(), UploadOptions{FilePath: "/fake/file.png", ContentType: "image/png"}},
 		"POST", "/v1/images", "multipart/form-data.*",
 		`^--[a-z0-9]+\r\n(Content-Disposition: form-data; name="image"; filename="file.png"|Content-Type: image/png)\r\n(Content-Disposition: form-data; name="image"; filename="file.png"|Content-Type: image/png)\r\n\r\ncontents\r\n--[a-z0-9]+--\r\n$`},
 }
@@ -73,8 +74,11 @@ func TestAPIMethods(t *testing.T) {
 
 		f := reflect.ValueOf(tt.fn)
 		var pl []reflect.Value
+
 		if tt.payload != nil {
-			pl = append(pl, reflect.ValueOf(tt.payload))
+			for _, p := range tt.payload {
+				pl = append(pl, reflect.ValueOf(p))
+			}
 		}
 		f.Call(pl)
 
@@ -98,8 +102,7 @@ func TestAPITimeout(t *testing.T) {
 	}))
 	defer ts.Close()
 	m.Host = ts.URL
-
-	_, err := m.GetUser("")
+	_, err := m.GetUser(context.TODO(), "")
 	if err == nil {
 		t.Errorf("Expected HTTP timeout error, but call succeeded")
 	} else if !strings.Contains(err.Error(), "Client.Timeout exceeded") {
