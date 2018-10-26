@@ -37,22 +37,40 @@ type apiTest struct {
 var m = NewClient("clientId", "clientSecret")
 
 var apiTests = []apiTest{
-	{"token", m.GetUser, []interface{}{context.TODO(), ""},
+	{"token", m.GetUser, []interface{}{""},
 		"GET", "/v1/me", "application/json",
 		"null"},
-	{"token", m.GetUser, []interface{}{context.TODO(), "@dummyUser"},
+	{"token", m.GetUserCtx, []interface{}{context.TODO(), ""},
+		"GET", "/v1/me", "application/json",
+		"null"},
+	{"token", m.GetUser, []interface{}{"@dummyUser"},
 		"GET", "/v1/@dummyUser", "application/json",
 		"null"},
-	{"token", m.GetUserPublications, []interface{}{context.TODO(), "@dummyUser"},
+	{"token", m.GetUserCtx, []interface{}{context.TODO(), "@dummyUser"},
+		"GET", "/v1/@dummyUser", "application/json",
+		"null"},
+	{"token", m.GetUserPublications, []interface{}{"@dummyUser"},
 		"GET", "/v1/users/@dummyUser/publications", "application/json",
 		"null"},
-	{"token", m.GetPublicationContributors, []interface{}{context.TODO(), "b45573563f5a"},
+	{"token", m.GetUserPublicationsCtx, []interface{}{context.TODO(), "@dummyUser"},
+		"GET", "/v1/users/@dummyUser/publications", "application/json",
+		"null"},
+	{"token", m.GetPublicationContributors, []interface{}{"b45573563f5a"},
 		"GET", "/v1/publications/b45573563f5a/contributors", "application/json",
 		"null"},
-	{"token", m.CreatePost, []interface{}{context.TODO(), CreatePostOptions{UserID: "42", Title: "Title", Content: "Yo", ContentFormat: "html"}},
+	{"token", m.GetPublicationContributorsCtx, []interface{}{context.TODO(), "b45573563f5a"},
+		"GET", "/v1/publications/b45573563f5a/contributors", "application/json",
+		"null"},
+	{"token", m.CreatePost, []interface{}{CreatePostOptions{UserID: "42", Title: "Title", Content: "Yo", ContentFormat: "html"}},
 		"POST", "/v1/users/42/posts", "application/json",
 		`{"title":"Title","content":"Yo","contentFormat":"html"}`},
-	{"token", m.UploadImage, []interface{}{context.TODO(), UploadOptions{FilePath: "/fake/file.png", ContentType: "image/png"}},
+	{"token", m.CreatePostCtx, []interface{}{context.TODO(), CreatePostOptions{UserID: "42", Title: "Title", Content: "Yo", ContentFormat: "html"}},
+		"POST", "/v1/users/42/posts", "application/json",
+		`{"title":"Title","content":"Yo","contentFormat":"html"}`},
+	{"token", m.UploadImage, []interface{}{UploadOptions{FilePath: "/fake/file.png", ContentType: "image/png"}},
+		"POST", "/v1/images", "multipart/form-data.*",
+		`^--[a-z0-9]+\r\n(Content-Disposition: form-data; name="image"; filename="file.png"|Content-Type: image/png)\r\n(Content-Disposition: form-data; name="image"; filename="file.png"|Content-Type: image/png)\r\n\r\ncontents\r\n--[a-z0-9]+--\r\n$`},
+	{"token", m.UploadImageCtx, []interface{}{context.TODO(), UploadOptions{FilePath: "/fake/file.png", ContentType: "image/png"}},
 		"POST", "/v1/images", "multipart/form-data.*",
 		`^--[a-z0-9]+\r\n(Content-Disposition: form-data; name="image"; filename="file.png"|Content-Type: image/png)\r\n(Content-Disposition: form-data; name="image"; filename="file.png"|Content-Type: image/png)\r\n\r\ncontents\r\n--[a-z0-9]+--\r\n$`},
 }
@@ -102,7 +120,7 @@ func TestAPITimeout(t *testing.T) {
 	}))
 	defer ts.Close()
 	m.Host = ts.URL
-	_, err := m.GetUser(context.TODO(), "")
+	_, err := m.GetUserCtx(context.TODO(), "")
 	if err == nil {
 		t.Errorf("Expected HTTP timeout error, but call succeeded")
 	} else if !strings.Contains(err.Error(), "Client.Timeout exceeded") {
