@@ -218,7 +218,12 @@ func (m *Medium) GetAuthorizationURL(state, redirectURL string, scopes ...Scope)
 }
 
 // ExchangeAuthorizationCode exchanges the supplied code for a long-lived access token.
-func (m *Medium) ExchangeAuthorizationCode(ctx context.Context, code, redirectURL string) (AccessToken, error) {
+func (m *Medium) ExchangeAuthorizationCode(code, redirectURL string) (AccessToken, error) {
+	return m.ExchangeAuthorizationCodeCtx(context.Background(), code, redirectURL)
+}
+
+// ExchangeAuthorizationCodeCtx exchanges the supplied code for a long-lived access token with context.
+func (m *Medium) ExchangeAuthorizationCodeCtx(ctx context.Context, code, redirectURL string) (AccessToken, error) {
 	v := url.Values{
 		"code":          {code},
 		"client_id":     {m.ApplicationID},
@@ -230,7 +235,12 @@ func (m *Medium) ExchangeAuthorizationCode(ctx context.Context, code, redirectUR
 }
 
 // ExchangeRefreshToken exchanges the supplied refresh token for a new access token.
-func (m *Medium) ExchangeRefreshToken(ctx context.Context, rt string) (AccessToken, error) {
+func (m *Medium) ExchangeRefreshToken(rt string) (AccessToken, error) {
+	return m.ExchangeRefreshTokenCtx(context.Background(), rt)
+}
+
+// ExchangeRefreshTokenCtx exchanges the supplied refresh token for a new access token with context.
+func (m *Medium) ExchangeRefreshTokenCtx(ctx context.Context, rt string) (AccessToken, error) {
 	v := url.Values{
 		"refresh_token": {rt},
 		"client_id":     {m.ApplicationID},
@@ -243,7 +253,12 @@ func (m *Medium) ExchangeRefreshToken(ctx context.Context, rt string) (AccessTok
 // GetUser gets the profile identified by the current AccessToken.
 // It will get the specified user or the current user if userID is empty.
 // This requires m.AccessToken to have the BasicProfile scope.
-func (m *Medium) GetUser(ctx context.Context, userID string) (*User, error) {
+func (m *Medium) GetUser(userID string) (*User, error) {
+	return m.GetUserCtx(context.Background(), userID)
+}
+
+// GetUserCtx gets the profile identified by the current AccessToken with context.
+func (m *Medium) GetUserCtx(ctx context.Context, userID string) (*User, error) {
 	var r clientRequest
 	if userID == "" {
 		r = clientRequest{
@@ -263,7 +278,12 @@ func (m *Medium) GetUser(ctx context.Context, userID string) (*User, error) {
 
 // GetUserPublications gets user publications by the current AccessToken.
 // This requires m.AccessToken to have the BasicPublications scope.
-func (m *Medium) GetUserPublications(ctx context.Context, userID string) (*Publications, error) {
+func (m *Medium) GetUserPublications(userID string) (*Publications, error) {
+	return m.GetUserPublicationsCtx(context.Background(), userID)
+}
+
+// GetUserPublications gets user publications by the current AccessToken with context
+func (m *Medium) GetUserPublicationsCtx(ctx context.Context, userID string) (*Publications, error) {
 	r := clientRequest{
 		method: "GET",
 		path:   fmt.Sprintf("/v1/users/%s/publications", userID),
@@ -273,10 +293,16 @@ func (m *Medium) GetUserPublications(ctx context.Context, userID string) (*Publi
 	return p, err
 }
 
-// GetPublicationContributors gets contributors for givaen a publication
+// GetPublicationContributors gets contributors for given a publication
 // by the current AccessToken.
 // This requires m.AccessToken to have the BasicPublications scope.
-func (m *Medium) GetPublicationContributors(ctx context.Context, publicationID string) (*Contributors, error) {
+func (m *Medium) GetPublicationContributors(publicationID string) (*Contributors, error) {
+	return m.GetPublicationContributorsCtx(context.Background(), publicationID)
+}
+
+// GetPublicationContributors gets contributors for given a publication
+// by the current AccessToken with context.
+func (m *Medium) GetPublicationContributorsCtx(ctx context.Context, publicationID string) (*Contributors, error) {
 	r := clientRequest{
 		method: "GET",
 		path:   fmt.Sprintf("/v1/publications/%s/contributors", publicationID),
@@ -288,7 +314,12 @@ func (m *Medium) GetPublicationContributors(ctx context.Context, publicationID s
 
 // CreatePost creates a post on the profile identified by the current AccessToken.
 // This requires m.AccessToken to have the PublishPost scope.
-func (m *Medium) CreatePost(ctx context.Context, o CreatePostOptions) (*Post, error) {
+func (m *Medium) CreatePost(o CreatePostOptions) (*Post, error) {
+	return m.CreatePostCtx(context.Background(), o)
+}
+
+// CreatePost creates a post on the profile identified by the current AccessToken with context.
+func (m *Medium) CreatePostCtx(ctx context.Context, o CreatePostOptions) (*Post, error) {
 	r := clientRequest{
 		method: "POST",
 		path:   fmt.Sprintf("/v1/users/%s/posts", o.UserID),
@@ -301,7 +332,10 @@ func (m *Medium) CreatePost(ctx context.Context, o CreatePostOptions) (*Post, er
 
 // UploadImage uploads an image to Medium.
 // This requires m.AccessToken to have the UploadImage scope.
-func (m *Medium) UploadImage(ctx context.Context, o UploadOptions) (*Image, error) {
+func (m *Medium) UploadImage(o UploadOptions) (*Image, error) {
+	return m.UploadImageCtx(context.Background(), o)
+}
+func (m *Medium) UploadImageCtx(ctx context.Context, o UploadOptions) (*Image, error) {
 	o.fieldName = "image"
 	r := clientRequest{
 		method: "POST",
