@@ -120,7 +120,7 @@ func TestAPITimeout(t *testing.T) {
 	}))
 	defer ts.Close()
 	m.Host = ts.URL
-	_, err := m.GetUserCtx(context.TODO(), "")
+	_, err := m.GetUser("")
 	if err == nil {
 		t.Errorf("Expected HTTP timeout error, but call succeeded")
 	} else if !strings.Contains(err.Error(), "Client.Timeout exceeded") {
